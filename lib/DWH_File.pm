@@ -6,7 +6,7 @@ use vars qw( $VERSION $default_dbm );
 
 use DWH_File::Work;
 
-$VERSION = 0.2;
+$VERSION = 0.21;
 
 BEGIN { defined( $default_dbm ) or $default_dbm = 'AnyDBM_File' }
 
@@ -54,7 +54,7 @@ __END__
 
 =head1 NAME
 
-DWH_File 0.1 - data and object persistence in deep and wide hashes
+DWH_File 0.21 - data and object persistence in deep and wide hashes
 
 =head1 SYNOPSIS
 
@@ -394,6 +394,9 @@ and distributed under the same terms as Perl itself.
 CVS-log (non-pod)
 
     $Log: DWH_File.pm,v $
+    Revision 1.5  2002/11/02 22:45:10  schmidt
+    Release version 0.21
+
     Revision 1.4  2002/10/25 14:25:35  schmidt
     Enabled use of specific DBM module (as in documentation)
 

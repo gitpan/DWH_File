@@ -60,7 +60,7 @@ sub PUSH {
 	my $subscript = DWH_File::Subscript->from_input( $self, $i );
 	my $value = DWH_File::Value::Factory->from_input( $kernel, $v );
 	my $node = $nc->new;
-	$node->set_value( $v );
+	$node->set_value( $value );
 	# make lazy
 	$kernel->store( $subscript, $node );
 	$i++;
@@ -236,6 +236,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Array.pm,v $
+    Revision 1.2  2002/11/02 22:41:54  schmidt
+    Bug-fix in PUSH
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 
