@@ -19,8 +19,9 @@ sub TIEHASH {
 }
 
 sub wipe {
-    $_[ 0 ]->{ kernel }->save_state;
-    $_[ 0 ]->{ kernel }->purge_garbage;
+    if ( $_[ 0 ]->{ kernel }{ alive } ) {
+	$_[ 0 ]->{ kernel }->wipe;
+    }
 }
 
 1;
@@ -55,6 +56,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Work.pm,v $
+    Revision 1.2  2002/10/25 14:04:10  schmidt
+    Slight revision of untie and release management
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

@@ -61,6 +61,11 @@ have in mind:
 
 HISTORY
 
+    0.2  - Slight revision of untie management. Now allows selecting
+           specific DBM-module (a feature, that never came into
+           the rewrite 0.1, though documentation still claimed it
+           was there).
+
     0.1  - Complete rewrite. New version much more OO-based. New
            file-format using binary encodings in stead of
            decimal strings (supposedly more efficient). More
@@ -75,13 +80,16 @@ HISTORY
 
     0.01 - Initially published version
 
-Jakob Schmidt <schmidt@orqwood.dk> 2002 September 30
+Jakob Schmidt <schmidt@orqwood.dk> 2002 October 25
 Visit http://www.orqwood.dk/perl5/dwh for complete info on
 DWH_File and it's accomplices
 
 LOG
 
   $Log: README,v $
+  Revision 1.3  2002/10/25 20:50:08  schmidt
+  History entry for version 0.2 entered
+
   Revision 1.2  2002/09/29 23:05:10  schmidt
   Made a few changes to get ready for release version 0.1 on CPAN
 

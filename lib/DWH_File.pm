@@ -2,14 +2,25 @@ package DWH_File;
 
 use warnings;
 use strict;
-use vars qw( $VERSION );
+use vars qw( $VERSION $default_dbm );
 
 use DWH_File::Work;
 
-$VERSION = 0.1;
+$VERSION = 0.2;
 
-sub TIEHASH
+BEGIN { defined( $default_dbm ) or $default_dbm = 'AnyDBM_File' }
+
+sub import
 {
+    my $class = shift;
+    ( $default_dbm ) = @_;
+    unless ( defined( $default_dbm ) and $default_dbm ) {
+	$default_dbm = 'AnyDBM_File';
+    }
+    require "$default_dbm.pm" or die "Couldn't use $default_dbm.pm: $!";
+}
+
+sub TIEHASH {
     my $class = shift;
 
     my $worker = DWH_File::Work->TIEHASH( @_ );
@@ -18,43 +29,21 @@ sub TIEHASH
     return $self;
 }
 
-sub FETCH
-{
-    ${ $_[ 0 ] }->FETCH( $_[ 1 ] );
-}
+sub FETCH { ${ $_[ 0 ] }->FETCH( $_[ 1 ] ) }
 
-sub STORE
-{
-    ${ $_[ 0 ] }->STORE( @_[ 1, 2 ] );
-}
+sub STORE { ${ $_[ 0 ] }->STORE( @_[ 1, 2 ] ) }
 
-sub FIRSTKEY
-{
-    ${ $_[ 0 ] }->FIRSTKEY;
-}
+sub FIRSTKEY { ${ $_[ 0 ] }->FIRSTKEY }
 
-sub NEXTKEY
-{
-    ${ $_[ 0 ] }->NEXTKEY( $_[ 1 ] );
-}
+sub NEXTKEY { ${ $_[ 0 ] }->NEXTKEY( $_[ 1 ] ) }
 
-sub EXISTS
-{
-    ${ $_[ 0 ] }->EXISTS( $_[ 1 ] );
-}
+sub EXISTS { ${ $_[ 0 ] }->EXISTS( $_[ 1 ] ) }
 
-sub DELETE
-{
-    ${ $_[ 0 ] }->DELETE( $_[ 1 ] );
-}
+sub DELETE { ${ $_[ 0 ] }->DELETE( $_[ 1 ] ) }
 
-sub CLEAR
-{
-    ${ $_[ 0 ] }->CLEAR;
-}
+sub CLEAR { ${ $_[ 0 ] }->CLEAR }
 
-sub DESTROY
-{
+sub DESTROY {
     ${ $_[ 0 ] }->wipe;
     ${ $_[ 0 ] } = undef;
 }
@@ -405,6 +394,12 @@ and distributed under the same terms as Perl itself.
 CVS-log (non-pod)
 
     $Log: DWH_File.pm,v $
+    Revision 1.4  2002/10/25 14:25:35  schmidt
+    Enabled use of specific DBM module (as in documentation)
+
+    Revision 1.3  2002/10/07 20:48:18  schmidt
+    Style correction
+
     Revision 1.2  2002/09/29 23:05:33  schmidt
     Made a few changes to get ready for release version 0.1 on CPAN
 

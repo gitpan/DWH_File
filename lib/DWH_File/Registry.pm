@@ -41,6 +41,15 @@ sub register {
     return $tag;
 }
 
+sub release {
+    my ( $self, $registrand ) = @_;
+    my $tag;
+    unless ( $tag = $registrand->fetch( 'tag' ) ) {
+	die "release on unregistered instance '$tag'";
+    }
+    $self->{ $tag } = 0;
+}
+
 1;
 
 __END__
@@ -73,6 +82,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Registry.pm,v $
+    Revision 1.2  2002/10/25 14:04:09  schmidt
+    Slight revision of untie and release management
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

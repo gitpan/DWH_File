@@ -4,7 +4,6 @@ use warnings;
 use strict;
 use vars qw( @ISA $VERSION );
 
-use AnyDBM_File;
 use UNIVERSAL;
 
 use DWH_File::ID_Mill;
@@ -21,10 +20,14 @@ sub new {
     my $this = shift;
     my $file = $_[ 0 ];
     my $class = ref $this || $this;
-    my $dbm = tie my %dummy, 'AnyDBM_File', @_;
+    my %dummy = ();
+    my $dbm = tie %dummy, $DWH_File::default_dbm, @_;
+    unless ( $dbm ) { die "Failed to create dbm file $_[ 0 ]: $!" }
     my $self = { dbm => $dbm,
                  cache => DWH_File::Cache->new,
                  garbage => {},
+		 dummy => \%dummy,
+		 alive => 1,
                  #logger =>DWH_File::Log->new( $file ),
                 };
     bless $self, $class;
@@ -187,6 +190,21 @@ sub purge_garbage {
     }
 }
 
+sub release {
+    my ( $self ) = @_;
+    $self->{ registry }->release( $self );
+    delete $_[ 0 ]->{ dbm };
+    untie %{ $_[ 0 ]->{ dummy } };
+    $self->{ alive } = 0;
+}
+
+sub wipe {
+    my ( $self ) = @_;
+    $self->save_state;
+    $self->purge_garbage;
+    $self->release;
+}
+
 1;
 
 __END__
@@ -219,6 +237,12 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Kernel.pm,v $
+    Revision 1.3  2002/10/25 14:25:35  schmidt
+    Enabled use of specific DBM module (as in documentation)
+
+    Revision 1.2  2002/10/25 14:04:09  schmidt
+    Slight revision of untie and release management
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 
