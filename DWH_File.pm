@@ -1,7 +1,7 @@
 # DWH_File (the Deep 'n' Wide Hash)
 # - persistence for complex datastructures and objects in Perl
 #
-# version 0.01
+# version 0.02
 #
 # Special characters
 # ^ as first char in a key indicates that the value is helper-data
@@ -28,9 +28,6 @@
 # ^ID^^V         Implementation type for this data -
 #                for instance hashes may be saved in different
 #                ways individually
-#                planned: nonlinked hashes (keylists)
-#                         linked list arrays (lesser performance on rank
-#                         access operations - better on list manipulation)
 #
 # References to data in other .dwh file:
 # ^ID^file_id    (as value)
@@ -68,23 +65,43 @@ sub new
 
 sub Register
 {
-    my ( $self, $instance, $name ) = @_;
+    my ( $self, $instance ) = @_;
     
     unless ( ref( $instance ) =~ /DWH_File/ )
     {
 	warn "Attempt to register non-DWH_File in DWH_File::Registry";
 	return undef;
     }
-    unless ( $name )
+    unless ( $instance->{ name } )
     {
 	warn "Attempt to register DWH_File with no name tag";
 	return undef;
     }
-    if ( exists( $self->{ $name } ) and $self->{ $name } ne $instance )
+    if ( exists( $self->{ $instance->{ name } } ) and
+	 $self->{ $instance->{ name } } ne $instance )
     {
-	die "Registering more than one DWH_File with name tag '$name'";
+	die
+      "Registering more than one DWH_File with name tag '$instance->{name}'";
     }
-    $self->{ $name } = $instance;
+    $self->{ $instance->{ name } } = $instance;
+}
+
+sub Unregister
+{
+    my ( $self, $instance ) = @_;
+    
+    unless ( ref( $instance ) =~ /DWH_File/ )
+    {
+	warn "Attempt to unregister non-DWH_File in DWH_File::Registry";
+	return undef;
+    }
+    unless ( exists( $self->{ $instance->{ name } } ) and
+	     $self->{ $instance->{ name } } eq $instance )
+    {
+	warn
+      "Unegistering unregistered DWH_File with name tag '$instance->{name}'";
+    }
+    delete $self->{ $instance->{ name } };
 }
 
 sub Resolve
@@ -107,6 +124,7 @@ sub Resolve
 package DWH_File::Base;
 
 use strict;
+use vars qw( %tieing );
 
 # used by Work HashHelper and ArrayHelper - overridden by ScalarHelper but
 # called by the overriding method
@@ -131,11 +149,11 @@ sub STORE
     {
 	if ( ref $value )
 	{
-	    my ( $tied, $far );
+	    my $far;
+	    my $tied = _tied( $value );
+
 	    if ( $value =~ /HASH/ )
 	    {
-		$tied = tied( %$value );
-
 		if ( ref( $tied ) eq "DWH_File::HashHelper" )
 		{
 		    if ( $tied->{ master } != $self->{ master } )
@@ -157,8 +175,6 @@ sub STORE
 	    }
 	    elsif ( $value =~ /ARRAY/ )
 	    {
-		$tied = tied( @$value );
-
 		if ( ref( $tied ) eq "DWH_File::ArrayHelper" )
 		{
 		    if ( $tied->{ master } != $self->{ master } )
@@ -180,8 +196,6 @@ sub STORE
 	    }
 	    elsif ( $value =~ /SCALAR/ )
 	    {
-		$tied = tied( $$value );
-
 		if ( ref( $tied ) eq "DWH_File::ScalarHelper" )
 		{
 		    if ( $tied->{ master } != $self->{ master } )
@@ -256,6 +270,30 @@ sub FETCH
     }
 }
 
+sub _tied
+{
+    my $ty;
+    if ( ref( $_[ 0 ] ) =~ /HASH/ ) { $ty = tied( %{ $_[ 0 ] } ) }
+    elsif ( ref( $_[ 0 ] ) =~ /ARRAY/ ) { $ty = tied( @{ $_[ 0 ] } ) }
+    elsif ( ref( $_[ 0 ] ) =~ /SCALAR/ ) { $ty = tied( ${ $_[ 0 ] } ) }
+
+    if ( ref $ty ) { return $ty }
+    elsif ( exists $tieing{ $_[ 0 ] } ) { return $tieing{ $_[ 0 ] } }
+    else { return '' }
+}
+
+sub _tieing
+{
+    # print "tieing: $_[ 1 ]\n";
+    $tieing{ $_[ 1 ] } = $_[ 0 ];
+}
+
+sub _didtie
+{
+    # print "didtie: $_[ 1 ]\n";
+    delete $tieing{ $_[ 1 ] };
+}
+
 ############################################################################
 package DWH_File::Helper;
 
@@ -265,7 +303,6 @@ use strict;
 
 # "abstract methods" required in derived classes:
 # 
-# SaveOriginal
 # RestoreOriginal
 # StdType
 
@@ -288,12 +325,15 @@ sub TIE_GENERIC
 {
     my ( $self, $this, $master, $ID ) = @_;
     
-    
+    # note that the thing is being tied
+    my $in = "$this";
+    $self->_tieing( $in );
+
     # Helper attributes reference to the data structure and master
     $self->{ dataref } = $this;
     $self->{ master } = $master;
     $self->{ hash } = $master->{ hash };
-    
+
     # if an ID is provided then the reference is to be associated with the
     # corresponding slice of the DB file. Otherwise a new slice is to
     # be created.
@@ -324,10 +364,13 @@ sub TIE_GENERIC
 	# (some dir in @INC)/Gumbo/Hot.pm
         my ( $stdtype, $refclass, $module ) = split( /\^/,
             $self->{ master }->FETCH_NAIVE( $ID ) );
-        
+
         # The standard type must match
         $stdtype ne $self->StdType and
             die "Attempt to tie to the wrong kind of DWH_File::Helper";
+    
+        # helper attribute the ID
+        $self->{ id } = $ID;
 
         if ( $refclass )
         {
@@ -345,11 +388,18 @@ sub TIE_GENERIC
                 bless $this, $refclass;
 		# call any 'restore' routine set up by the class
 		${ $refclass.'::restoresetup' } and
-		    &${ $refclass.'::restoresetup' }( $this );
+		    &${ $refclass.'::restoresetup' }( $this, $self );
             }
-            else { return( undef ) }
+            else
+            {
+		warn "Class $refclass does note acknowledge DWH_File";
+		return( undef );
+	    }
         } 
         # if it's just a plain variable no further actions are needed
+
+        # register that the ID is associated with a real live variable now
+        $self->SetMeLoaded;
     }
     else
     {
@@ -381,19 +431,27 @@ sub TIE_GENERIC
         {
             $self->{ master }->STORE_NAIVE( $ID, $self->StdType );
         }
-        
-        # save previous contents
-        $self->SaveOriginal( $this );
+    
+        # helper attribute the ID
+        $self->{ id } = $ID;
+        # register that the ID is associated with a real live variable now
+        $self->SetMeLoaded;
+     
+        {
+	    no strict 'refs';
+	    # restore original contents
+	    if ( ${ $refclass.'::intervene' } )
+            {
+                &${ $refclass.'::intervene' }( $this, $self );
+            }
+            else { $self->RestoreOriginal }
+        }
     }
-    
-    # helper attribute the ID
-    $self->{ id } = $ID;
-    
-    # register that the ID is associated with a real live variable now
-    $self->SetMeLoaded;
-    
-    # restore original contents
-    $self->RestoreOriginal;
+
+    delete $self->{ dataref };
+
+    # note that we're done tieing
+    $self->_didtie( $in );
 }
 
 sub SetMeLoaded
@@ -492,6 +550,8 @@ sub Venture
 
     # invariant: the key wazzent there before
     $self->{ id } = $self->{ master }->NewID;
+    $self->{ master }->STORE_NAIVE( $self->{ ownerID } . '^' . $key,
+				    $self->{ id } );
     $self->{ master }->STORE_NAIVE( $self->{ id } . '^k', $key );
 
     # make it the first node in the list
@@ -642,8 +702,7 @@ sub STORE_NAIVE
 {
     my ( $self, $key, $value ) = @_;
 
-    $self->{ master }->STORE_NAIVE( $self->{ id } . '^' . $key,
-				$self->{ livenode }->Venture( $key ) );
+    $self->{ livenode }->Venture( $key );
     if ( defined $value ) { $self->{ livenode }->SetValue( $value ) }
     else { $self->{ livenode }->SetValue( undef ) }
 }
@@ -714,15 +773,6 @@ sub AnnihilateMe
 }
 
 sub StdType { 'HASH' }
-        
-sub SaveOriginal
-{
-    my $self = shift;
-    
-    my %orig = %{ $self->{ dataref } };
-    
-    $self->{ orig } = \%orig;
-}
     
 sub RestoreOriginal
 {
@@ -733,14 +783,12 @@ sub RestoreOriginal
     $self->{ livenode }->{ ownerID } = $self->{ id };
     $self->{ curnode }->{ ownerID } = $self->{ id };
 
-    return( undef ) unless defined $self->{ orig };
+    return( undef ) unless defined $self->{ dataref };
     
-    foreach ( keys %{ $self->{ orig } } )
+    foreach ( keys %{ $self->{ dataref } } )
     {
-        $self->STORE( $_, $self->{ orig }->{ $_ } );
+        $self->STORE( $_, $self->{ dataref }->{ $_ } );
     }
-    
-    delete( $self->{ orig } );
 }
 
 sub FIRSTKEY
@@ -1027,32 +1075,21 @@ sub AnnihilateMe
     # perform cleanup related to any reference
     $self->SUPER::AnnihilateMe;
 }
-
-sub SaveOriginal
-{
-    my $self = shift;
-    
-    my @orig = @{ $self->{ dataref } };
-    
-    $self->{ orig } = \@orig;
-}
     
 sub RestoreOriginal
 {
     my $self = shift;
     
-    my @orig = @{ $self->{ orig } } if defined $self->{ orig };
+    my @orig = @{ $self->{ dataref } } if defined $self->{ dataref };
     
     if ( @orig )
     {
         my $i;
-        for ( $i = 0; $i<= $#orig; $i++ )
+        for ( $i = 0 ; $i <= $#orig ; $i++ )
         {
             $self->STORE( $i, $orig[ $i ] );
         }
     }
-    
-    undef( $self->{ orig } );
 }
 
 1;
@@ -1081,23 +1118,12 @@ sub TIESCALAR
 }
 
 sub StdType { 'SCALAR' }
-
-sub SaveOriginal
-{
-    my $self = shift;
-    
-    my $orig = ${ $self->{ dataref } };
-    
-    $self->{ orig } = $orig;
-}
     
 sub RestoreOriginal
 {
     my $self = shift;
     
-    if ( defined $self->{ orig } ) { $self->STORE( $self->{ orig } ) }
-    
-    undef( $self->{ orig } );
+    if ( defined $self->{ dataref } ) { $self->STORE( $self->{ dataref } ) }
 }
 
 sub FETCH_NAIVE
@@ -1190,19 +1216,22 @@ sub TIEHASH
     # any formerly used name in this file
     if ( defined $name )
     {
-	my $fName = $r{ '^N' };
-	$fName or $r{ '^N' } = $name;
-	$name or $name = $fName;
-	$name ne $fName and die
-	   "Can't tie to DWH_File: Name supplied: '$name'. Should be '$fName'";
+	if ( defined $r{ '^N' } )
+	{
+	    $name ne $r{ '^N' } and warn
+		"Specified tag '$name' differs from file tag '$r{ '^N' }'";
+	    $name = $r{ '^N' };
+	}
+	else { $r{ '^N' } = $name }
     }
+    else { defined( $r{ '^N' } ) or $r{ '^N' } = '' }
 
     # DWH_File object attributes
     my $self =
     {
         dbm => $dbm,
         hash => $hashref,
-        name => $name,
+        name => $r{ '^N' },
         file => $file,
         isloaded => {},
 	garbage => {},
@@ -1220,7 +1249,7 @@ sub TIEHASH
     bless $self, $class;
 
     # Register this instance with the registry
-    $_registry->Register( $self, $name ) if $name;
+    $_registry->Register( $self ) if $self->{ name };
 
     # initialize ID counter if not already present in the file
     unless ( defined $self->FETCH_NAIVE( '^L' ) )
@@ -1440,7 +1469,6 @@ sub LoadIDPool
 sub AddIDPool
 {
     my ( $self, $reclaim ) = @_;
-    
     # if no ID pool is present try loading it
     defined( $self->{ idpool } ) or $self->LoadIDPool;
     
@@ -1464,7 +1492,6 @@ sub StoreIDPool
     }
     
     my @pool = @{ $self->{ idpool } };
-    
     my $ID = shift @pool;
     $i = 0;
     while ( defined( $ID ) )
@@ -1564,9 +1591,9 @@ sub LoadReference
     
         # tie to appropriate helper using the 5-argument version of TIE...
         if ( $ref =~ /HASH/ )
-            { tie( %$result, 'DWH_File::HashHelper', $result, $self, $ID ) }
+              { tie( %$result, 'DWH_File::HashHelper', $result, $self, $ID ) }
         elsif ( $ref =~ /ARRAY/ )
-            { tie( @$result, 'DWH_File::ArrayHelper', $result, $self, $ID ) }
+             { tie( @$result, 'DWH_File::ArrayHelper', $result, $self, $ID ) }
         elsif ( $ref =~ /SCALAR/ )
             { tie( $$result, 'DWH_File::ScalarHelper', $result, $self, $ID ) }
     }
@@ -1776,7 +1803,7 @@ sub Wipe
         }
     }
 
-    # break circular references and untie helpers
+    # break any circular references and untie helpers
     my ( $key, $ref );
     while ( ( $key, $ref ) = each( %{ $self->{ isloaded } } ) )
     {
@@ -1802,12 +1829,15 @@ sub Wipe
 	unlink $self->{ lock };
 	delete $self->{ lock };
     }
+
+    # Unregister this instance from the registry
+    $_registry->Unregister( $self ) if $self->{ name };
 }
 
 sub DESTROY
 {
     my $self = shift;
-
+    
     # close log
     if ( defined $self->{ logFH } )
     {
@@ -1820,6 +1850,7 @@ sub DESTROY
 	unlink $self->{ lock };
 	delete $self->{ lock };
     }
+    
 }
 
 1;
@@ -1846,7 +1877,7 @@ use vars qw( $dbmf $muex $log );
 #       to logical true for logging to take place. Whitespace is replaced by
 #       underscores.
 
-$DWH_File::VERSION = 0.01;
+$DWH_File::VERSION = 0.02;
 
 BEGIN
 {
@@ -1947,7 +1978,7 @@ __END__
 
 =head1 NAME
 
-DWH_File 0.01 - data and object persistence in deep and wide hashes
+DWH_File 0.02 - data and object persistence in deep and wide hashes
 
 =head1 SYNOPSIS
 
@@ -1978,7 +2009,7 @@ This is why I made it. It makes it extremely simple to achieve persistence in
 object oriented Perl programs and you can skip the cumbersome interaction with
 a conventional database.
 
-See L<"MODELS"> below for the various incantations needed to make
+See L<MODELS> section below for the various incantations needed to make
 objects persistent.
 
 DWH_File tries to make the tied hash behave as much like a standard Perl hash
@@ -1992,7 +2023,7 @@ It is possible to distribute for instance an object system over several files
 if wanted. This might be practical to avoid huge single files and may also
 make it easier make a reasonable structure in the data. If this feature is
 used the same set of files should be tied each time if any of the contents
-that may refer across files is altered. See L<"MODELS">.
+that may refer across files is altered. See L<MODELS>.
 
 =head2 GARBAGE COLLECTION
 
@@ -2012,9 +2043,6 @@ to undef those in advance). Otherwise you'll leave the object at the mercy
 of global destruction and garbage won't be properly collected.
 
 =head2 MUTUAL EXCLUSION
-
-Note: The mutual exclusion schemes discussed in this section have only
-been tested sporadically and they may be both buggy and stupid.
 
 Since DWH_File was originally inteded to be used in CGI programming
 the file would need to be locked at write time and DWH_File supplies
@@ -2068,7 +2096,7 @@ the DWH_File
     # with no extra parameters to use() DWH_File defaults to:
     # AnyDBM_File, no locking and no logging
     tie( %h, DWH_File, 'myFile.dbm', O_RDWR|O_CREAT, 0644 );
-    # ties %h to whatever filename the chosen DBM package
+    # ties %h to whatever filename the chosen (in DWH_Config) DBM package
     # converts 'myFile.dwh.dbm' to.
     # DWH_File inserts '.dwh' before the last period in the
     # supplied name.
@@ -2161,7 +2189,7 @@ reference to some subrutine to take care of that:
     {
 	$iamDWHcapable = "Yes";
 	$mymodulename = "Wonderland"; # omit the .pm as ever
-	$restoresetup = \&WhatINeedToGetBy
+	$restoresetup = \&WhatINeedToGetBy;
     }
 
     sub WhatINeedToGetBy
@@ -2173,8 +2201,33 @@ reference to some subrutine to take care of that:
 
 	# You can call the rutine what you want (might be a good
         # idea to make one that the constructor can use as well)
-        # just make sure that $restoresetup points to it
+        # just make sure that $restoresetup points to it (see the
+        # below example as well)
     }
+
+Furthermore you may want to entirely alter the way the inner workings of
+an object is stored by DWH_File. In that case define $intervene to
+point to a subroutine:
+
+    package Mystery;
+
+    BEGIN
+    {
+        $iamDWHcapable = "Yes";
+        $intervene = sub {
+	    # In here I get to do the RestoreOriginal operaton
+	    # Since I'm a real nerd I may for instance wish to
+	    # tie some of the contents to a class of my own in
+	    # stead of DWH_File::*Helper...
+
+            # Whether the function references are made as references
+            # to anonymous sub as this one or to named subs as the
+            # above is of course insignificant
+        };
+    }
+
+This last feature is rather hairy and should only be used by people
+with a perfect understanding of the way DWH_File does it's stuff.
 
 Go to http://aut.dk/orqwood/dwh/ for some examples.
 
@@ -2192,7 +2245,7 @@ I'll include them).
 The locking methods use the UNIX ability to link more than one
 filename to file. This may not be possible on other platforms. You can
 either run without mutual exclusion - no problem on a single user
-system - or you can make up you own locking scheme suitable to you
+system - or you can make up your own locking scheme suitable to you
 platform.
 
 =head2 COMPETITION
@@ -2333,7 +2386,7 @@ tell me.
 
 Please let me know if you find any.
 
-As the version number (0.01) indicates this is a very early beta state
+As the version number (0.02) indicates this is a very early beta state
 piece of software. Please contact me if you have any comments or suggestions
 - also language corrections or other comments on the documentation.
 
