@@ -3,5 +3,5 @@ WriteMakefile(
               NAME => "DWH_File",
               DISTNAME => "DWH_File",
               VERSION_FROM => 'lib/DWH_File.pm',
-	      PREREQ_PM => {},
+	      PREREQ_PM => { URI => 0 },
              );

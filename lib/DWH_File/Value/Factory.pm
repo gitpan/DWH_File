@@ -11,6 +11,7 @@ use DWH_File::Value::Undef;
 use DWH_File::Tie::Scalar;
 use DWH_File::Tie::Array;
 use DWH_File::Tie::Hash;
+use DWH_File::Tie::Foreign;
 
 @ISA = qw(  );
 $VERSION = 0.01;
@@ -34,7 +35,10 @@ sub from_input {
         }
         else { die "Unable to tie $actual" }
         if ( $ty ) {
-            if ( $ty->isa( 'DWH_File::Tie' ) ) { return $ty }
+            if ( $ty->isa( 'DWH_File::Tie' ) ) {
+		if ( $ty->{ kernel } == $kernel ) { return $ty }
+		else { return DWH_File::Tie::Foreign->new( $kernel, $ty ) }
+	    }
             else { die "Can't handle tied data" }
         }
 	else {
@@ -88,6 +92,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Factory.pm,v $
+    Revision 1.2  2002/12/18 22:24:55  schmidt
+    Uses Tie::Foreign proxy when kernels differ
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

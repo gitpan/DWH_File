@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use vars qw( @ISA $VERSION );
 
-use DWH_File::Subscript;
+use DWH_File::Subscript::Wired;
 use DWH_File::Tie::Subscripted;
 use DWH_File::Tie::Hash::Node;
 
@@ -19,25 +19,26 @@ sub TIEHASH {
 
 sub DELETE {
     my ( $self, $key ) = @_;
-    my $subscript = DWH_File::Subscript->from_input( $self, $key );
+    my $subscript = $self->get_subscript( $key );
     my $node = $self->get_node( $subscript ) or return undef;
     my ( $p_node, $s_node, $p_sub, $s_sub );
     if ( defined $node->{ pred } ) {
-	$p_sub = DWH_File::Subscript->from_input( $self, $node->{ pred } );
+	$p_sub = $self->subscript_from_value_object( $node->{ pred } );
 	$p_node = $self->get_node( $p_sub );
     }
     if ( defined $node->{ succ } ) {
-	$s_sub = DWH_File::Subscript->from_input( $self, $node->{ succ } );
+	$s_sub = $self->subscript_from_value_object( $node->{ succ } );
 	$s_node = $self->get_node( $s_sub );
     }
     my $value = $node->{ value };
-    $node->set_value( undef );
+    $node->release;
+    $subscript->release;
     $self->{ kernel }->delete( $subscript );
     if ( not $p_node ) {
 	if ( not $s_node ) { $self->{ first } = undef } # first, last, only
 	else {
             # first
-	    $self->{ first } = $s_sub->actual;
+	    $self->{ first } = $s_sub->{ value };
 	    $s_node->{ pred } = undef;
 	    $self->{ kernel }->store( $s_sub, $s_node );
 	}
@@ -52,9 +53,9 @@ sub DELETE {
 	}
 	else {
             # general (mid)
-	    $p_node->{ succ } = $s_sub->actual;
+	    $p_node->{ succ } = $s_sub->{ value };
 	    $self->{ kernel }->store( $p_sub, $p_node );
-	    $s_node->{ pred } = $p_sub->actual;
+	    $s_node->{ pred } = $p_sub->{ value };
 	    $self->{ kernel }->store( $s_sub, $s_node );
 	}
     }
@@ -64,23 +65,26 @@ sub DELETE {
 sub CLEAR {
     my ( $self ) = @_;
     my $k = $self->{ first };
-    while ( defined $k ) {
-	my $sub = DWH_File::Subscript->from_input( $self, $k );
+    while ( defined $k and defined $k->actual_value ) {
+	my $sub = $self->subscript_from_value_object( $k );
 	my $node = $self->get_node( $sub );
 	$k = $node->{ succ };
-	$node->set_value( undef );
+	$node->release;
+	$sub->release;
 	$self->{ kernel }->delete( $sub );
     }
     $self->{ first } = undef;
     $self->{ kernel }->save_custom_grounding( $self );
 }
 
-sub FIRSTKEY { $_[ 0 ]->{ first } }
+sub FIRSTKEY {
+    defined $_[ 0 ]->{ first } ? $_[ 0 ]->{ first }->actual_value : undef;
+}
 
 sub NEXTKEY {
-    my $subscript = DWH_File::Subscript->from_input( @_[ 0, 1 ] );
+    my $subscript = $_[ 0 ]->get_subscript( $_[ 1 ] );
     my $node = $_[ 0 ]->get_node( $subscript ) or return undef;
-    return $node->{ succ };
+    return defined $node->{ succ } ? $node->{ succ }->actual_value : undef;
 }
 
 sub tie_reference {
@@ -98,7 +102,10 @@ sub wake_up_call {
     my ( $self, $tail ) = @_;
     unless ( defined $tail ) { die "Tail anomaly" }
     my ( $signal, $first ) = unpack "a a*", $tail;
-    if ( $signal eq '>' ) { $self->{ first } = $first }
+    if ( $signal eq '>' ) {
+	$self->{ first } = DWH_File::Value::Factory->
+	                   from_stored( $self->{ kernel }, $first );
+    }
     elsif ( $signal eq '<' ) { $self->{ first } = undef }
     else { die "Unknown signal byte: '$signal'" }
 }
@@ -114,28 +121,37 @@ sub node_class { 'DWH_File::Tie::Hash::Node' }
 
 sub handle_new_node {
     my ( $self, $node, $subscript ) = @_;
-    $node->set_successor( $self->FIRSTKEY );
-    $self->set_first_key( $subscript->actual );
+    $node->set_successor( $self->{ first } );
+    $self->set_first_key( $subscript->{ value } );
+    $subscript->retain;
+}
+
+sub get_subscript {
+    return DWH_File::Subscript::Wired->from_input( @_[ 0, 1 ] );
+}
+
+sub subscript_from_value_object {
+    return DWH_File::Subscript::Wired->new( @_[ 0, 1 ] );
 }
 
 sub set_first_key {
-    my ( $self, $key ) = @_;
+    my ( $self, $new_first ) = @_;
     my $first = $self->FIRSTKEY;
     if ( defined $first ) {
-        my $subscript = DWH_File::Subscript->from_input( $self, $first );
+        my $subscript = $self->get_subscript( $first );
         my $node = $self->get_node( $subscript );
-        $node->set_predecessor( $key );
+        $node->set_predecessor( $new_first );
 	# make lazy
 	$self->{ kernel }->store( $subscript, $node );
     }
-    $self->{ first } = $key;
+    $self->{ first } = $new_first;
     # make lazy
     $self->{ kernel }->save_custom_grounding( $self );
 }
 
 sub custom_grounding {
-    my $k = $_[ 0 ]->FIRSTKEY;
-    if ( defined $k ) { return ">$k" }
+    my $k = $_[ 0 ]->{ first };
+    if ( defined $k and defined $k->actual_value ) { return ">$k" }
     else { return '<' }
 }
 
@@ -171,6 +187,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Hash.pm,v $
+    Revision 1.2  2002/12/18 22:23:06  schmidt
+    Support for references as keys added
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

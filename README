@@ -1,7 +1,7 @@
 DWH_File (the Deep 'n' Wide Hash)
 - persistence for complex datastructures and objects in Perl
 
-version 0.21
+version 0.22
 
 INSTALLATION:
 
@@ -30,7 +30,8 @@ details.
 
 NOTE:
 
-From version 0.1 and on, the file format has changed radically.
+From version 0.1 on and again from version 0.22, the file format has
+changed.
 
 File conversions should not be that complicated though, but I haven't
 written any converter myself. It wouldn't surprise me if it works to
@@ -58,8 +59,26 @@ have in mind:
     * make version-convertion available for archives as new versions appear
     * test whether 0.1 format is actually more efficient than
       0.03 format
+    * adding developer-oriented documentation and building a decent
+      DWH_File site under www.orqwood.dk
+
+Moreover I've changed the design in 0.22 in order to be able to support
+distribution of data and behaviour. Actually implementing this
+will probably take me a while...
 
 HISTORY
+
+    0.22 - Now references used as keys anywhere in a DWH_Filed structure
+           are real live references (and not just textual representations
+           which are meaningful only in the very first runtime invication
+           of the application using DWH_File). This has certain
+           consequences. See the .pod. Besides there has been an internal
+           change of design and formats. (Registry has changed it's meaning,
+           kernel properties feature added and used by registries and
+           class pools. Tied hashes now identify themselves using
+           URIs (file://....) in stead of by regeistering globally
+           in a (singleton) dictionary. This also has certain consequences
+           which are briefly summarized in the .pod.
 
     0.21 - Fixed bug in push() to arrays (reference values were stored
            as flat strings). Also added a digit in version number
@@ -84,13 +103,16 @@ HISTORY
 
     0.01 - Initially published version
 
-Jakob Schmidt <schmidt@orqwood.dk> 2002 November 2
+Jakob Schmidt <schmidt@orqwood.dk> 2003 January 4
 Visit http://www.orqwood.dk/perl5/dwh for complete info on
 DWH_File and it's accomplices
 
 LOG
 
   $Log: README,v $
+  Revision 1.6  2003/01/04 23:29:54  schmidt
+  Updated for version 0.22
+
   Revision 1.5  2002/11/02 22:51:04  schmidt
   Update date
 

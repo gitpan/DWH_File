@@ -8,14 +8,13 @@ use vars qw( @ISA $VERSION );
 $VERSION = 0.01;
 
 sub new {
-    my ( $this, $kernel, $key ) = @_;
-    length $key == 3 or die "ID_Mill keys must be three chars";
+    my ( $this, $kernel, $property ) = @_;
     my $class = ref $this || $this;
-    my $current = $kernel->fetch( $key );
+    my $current = $kernel->fetch_property( $property );
     $current ||= 0;
     my $self = { current => $current,
                  kernel => $kernel,
-                 key => $key,
+                 property => $property,
                 };
     bless $self, $class;
     return $self;
@@ -28,7 +27,8 @@ sub next {
 
 sub save {
     my ( $self ) = @_;
-    $self->{ kernel }->store( $self->{ key }, $self->{ current } );
+    $self->{ kernel }->store_property( $self->{ property },
+				       $self->{ current } );
 }
 
 1;
@@ -63,6 +63,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: ID_Mill.pm,v $
+    Revision 1.2  2002/12/18 21:49:11  schmidt
+    uses the brand new kernel properties to store state
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

@@ -28,30 +28,25 @@ sub from_stored {
     my ( $pred_len, $succ_len ) = unpack "ll", $data;
     my $pl = $pred_len > 0 ? $pred_len : 0;
     my $sl = $succ_len > 0 ? $succ_len : 0;
-    my ( $ignore, $pred_key, $succ_key, $value_string ) =
+    my ( $ignore, $pred_string, $succ_string, $value_string ) =
         unpack "a8 a$pl a$sl a*", $data;
-    $pred_len > 0 and $self->{ pred } = $pred_key;
-    $succ_len > 0 and $self->{ succ } = $succ_key;
+    $pred_len > 0 and $self->{ pred } = DWH_File::Value::Factory->
+	                                from_stored( $kernel, $pred_string );
+    $succ_len > 0 and $self->{ succ } = DWH_File::Value::Factory->
+	                                from_stored( $kernel, $succ_string );
     $self->{ value } = DWH_File::Value::Factory->from_stored( $kernel,
 							      $value_string );
     return $self;
 }
 
 sub to_string {
-    my ( $pred_key, $succ_key ) = @{ $_[ 0 ] }{ qw( pred succ) };
+    my ( $pred, $succ ) = @{ $_[ 0 ] }{ qw( pred succ) };
     my ( $pl, $sl );
-    if ( defined $pred_key ) { $pl = length( $pred_key ) }
-    else {
-	$pl = -1;
-	$pred_key = '';
-    }
-    if ( defined $succ_key ) { $sl = length( $succ_key ) }
-    else {
-	$sl = -1;
-	$succ_key = '';
-    }
-    my $res = pack( "ll", $pl, $sl ) .
-        $pred_key . $succ_key . $_[ 0 ]->{ value };
+    $pl = defined $pred ? length( "$pred" ) : -1;
+    $sl = defined $succ ? length( "$succ" ) : -1;
+    unless ( defined $pred ) { $pred = '' }
+    unless ( defined $succ ) { $succ = '' }
+    my $res = pack( "ll", $pl, $sl ) . "$pred$succ$_[ 0 ]->{ value }";
     return $res;
 }
 
@@ -92,6 +87,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Node.pm,v $
+    Revision 1.2  2002/12/18 22:15:55  schmidt
+    Now supports references as keys
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

@@ -11,14 +11,25 @@ $VERSION = 0.01;
 
 sub set_value {
     my ( $self, $value ) = @_;
+    $self->release;
+    $self->{ value } = $value;
+    $self->retain;
+}
+
+sub release {
+    my ( $self ) = @_;
     if ( $self->{ value } and UNIVERSAL::isa( $self->{ value },
 					      'DWH_File::Reference' ) ) {
 	$self->{ value }->cut_refcount;
     }
-    if ( $value and UNIVERSAL::isa( $value, 'DWH_File::Reference' ) ) {
-	$value->bump_refcount;
+}
+
+sub retain {
+    my ( $self ) = @_;
+    if ( $self->{ value } and UNIVERSAL::isa( $self->{ value },
+					      'DWH_File::Reference' ) ) {
+	$self->{ value }->bump_refcount;
     }
-    $self->{ value } = $value;
 }
 
 1;
@@ -53,6 +64,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Slot.pm,v $
+    Revision 1.2  2002/12/18 22:05:06  schmidt
+    methods retain() and release() added for reference counting
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

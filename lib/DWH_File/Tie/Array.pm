@@ -35,7 +35,7 @@ sub STORESIZE {
         my $subscript = DWH_File::Subscript->from_input( $self, $i );
         my $data = $kernel->delete( $subscript );
 	if ( $data ) {
-	    $nc->from_stored( $kernel, $data )->set_value( undef );
+	    $nc->from_stored( $kernel, $data )->release;
 	}
     }
 }
@@ -129,7 +129,7 @@ sub DELETE {
     my $subscript = DWH_File::Subscript->from_input( $self, $index );
     if ( my $node = $self->get_node( $subscript ) ) {
 	my $value = $node->{ value }->actual_value;
-	$node->set_value( undef );
+	$node->release;
 	$self->{ kernel }->delete( $subscript );
 	return $value;
     }
@@ -236,6 +236,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Array.pm,v $
+    Revision 1.3  2002/12/18 22:22:13  schmidt
+    Uses new Slot methods for recounting
+
     Revision 1.2  2002/11/02 22:41:54  schmidt
     Bug-fix in PUSH
 

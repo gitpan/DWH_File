@@ -8,10 +8,11 @@ use UNIVERSAL;
 
 use DWH_File::ID_Mill;
 use DWH_File::Cache;
-#use DWH_File::Log;
-use DWH_File::Registry;
-use DWH_File::ClassPool;
+use DWH_File::Registry::URI;
+use DWH_File::Registry::Class;
 use DWH_File::Value::Factory;
+
+use URI::file;
 
 @ISA = qw( );
 $VERSION = 0.01;
@@ -22,45 +23,55 @@ sub new {
     my $class = ref $this || $this;
     my %dummy = ();
     my $dbm = tie %dummy, $DWH_File::default_dbm, @_;
-    unless ( $dbm ) { die "Failed to create dbm file $_[ 0 ]: $!" }
+    unless ( $dbm ) { die "Failed to create dbm file $file: $!" }
     my $self = { dbm => $dbm,
+		 file => $file,
                  cache => DWH_File::Cache->new,
                  garbage => {},
 		 dummy => \%dummy,
 		 alive => 1,
-                 #logger =>DWH_File::Log->new( $file ),
                 };
     bless $self, $class;
-    $self->{ id_mill } = DWH_File::ID_Mill->new( $self, 'idl' );
+    $self->{ id_mill } = DWH_File::ID_Mill->new( $self, 'id_mill' );
     $self->{ id_mill }{ current } ||= 0;
-    my $registry = DWH_File::Registry->instance;
-    $self->{ tag } = $registry->register( $self );
-    $self->{ registry } = $registry;
-    $self->{ class_pool } = DWH_File::ClassPool->new( $self, 'idc' );
-    my $worker_id = $dbm->FETCH( 'idb' );
+    $self->{ uri_pool } = DWH_File::Registry::URI->new( $self, 'uri_pool' );
+    DWH_File::Registry::URI->register( $self );
+    $self->{ class_pool } = DWH_File::Registry::Class->new( $self,
+							    'class_pool' );
+    my $worker_id = $self->fetch_property( 'worker' );
     if ( defined $worker_id ) {
 	$self->{ work } = $self->activate_by_id( $worker_id );
     }
     else {
         $self->{ work } = DWH_File::Value::Factory->from_input( $self, {},
 						       'DWH_File::Work' );
-        $self->store( 'idb', $self->{ work }{ id } );
+        $self->store_property( 'worker', $self->{ work }{ id } );
     }
     return $self;
 }
 
+sub uri {
+    return URI::file->new_abs( $_[ 0 ]->{ file } );
+}
+
 sub store {
     $_[ 0 ]->{ dbm }->STORE( @_[ 1, 2 ] );
-    $_[ 0 ]->{ logger } and $_[ 0 ]->{ logger }->log_store( @_[ 1, 2 ] );
+}
+
+sub store_property {
+    $_[ 0 ]->store( pack( 'La*', 0, $_[ 1 ] ), $_[ 2 ] );
 }
 
 sub fetch {
     return $_[ 0 ]->{ dbm }->FETCH( $_[ 1 ] );
 }
 
+sub fetch_property {
+    return $_[ 0 ]->fetch( pack 'La*', 0, $_[ 1 ] );
+}
+
 sub delete {
     $_[ 0 ]->{ dbm }->DELETE( $_[ 1 ] );
-    $_[ 0 ]->{ logger } and $_[ 0 ]->{ logger }->log_delete( $_[ 1 ] );
 }
 
 sub next_id {
@@ -70,6 +81,7 @@ sub next_id {
 sub save_state {
     $_[ 0 ]->{ id_mill }->save;
     $_[ 0 ]->{ class_pool }->save;
+    $_[ 0 ]->{ uri_pool }->save;
 }
 
 sub class_id {
@@ -77,7 +89,10 @@ sub class_id {
 }
 
 sub reference_string {
-    pack "aSL", '^', $_[ 0 ]->{ tag }, $_[ 1 ]->{ id };
+    my $tag;
+    if ( $_[ 1 ]->{ kernel } == $_[ 0 ] ) { $tag = 0 }
+    else { $tag = $_[ 0 ]->{ uri_pool }->tag( $_[ 1 ]->{ kernel } ) }
+    pack "aSL", '^', $tag, $_[ 1 ]->{ id };
 }
 
 sub activate_reference {
@@ -85,9 +100,10 @@ sub activate_reference {
     my ( $head, $tag, $id ) =
 	unpack "aSL", $stored;
     $head eq '^' or return undef;
-    if ( $tag != $self->{ tag } ) {
-        return $self->{ registry }->retrieve( $tag )->
-                                    activate_reference( $stored );
+    if ( $tag ) {
+        return DWH_File::Tie::Foreign->
+	    new( $self, $self->{ uri_pool }->retrieve( $tag )->
+		 activate_by_id( $id ) );
     }
     else { return $self->activate_by_id( $id ) }
 }
@@ -97,13 +113,13 @@ sub activate_by_id {
     my $val_obj;
     unless ( $val_obj = $self->{ cache }->retrieve( $id ) ) {
 	my $ground = $self->fetch( pack "L", $id );
-	my ( $class_id, $blessing_id, $refcount, $tail )
+	my ( $tie_class_id, $blessing_id, $refcount, $tail )
 	    = unpack "SSLa*", $ground;
         my $ref;
-        my $class = $self->{ class_pool }->retrieve( $class_id );
-        my $blessing = $self->{ class_pool }->retrieve( $blessing_id );
-        $class or die "Invalid class id: '$class_id'";
-        $val_obj = $class->tie_reference( $self, $ref, $blessing, $id, $tail );
+        my $tie_class = $self->{ class_pool }->fetch( $tie_class_id );
+        my $blessing = $self->{ class_pool }->fetch( $blessing_id );
+        $tie_class or die "Invalid class id: '$tie_class_id'";
+        $val_obj = $tie_class->tie_reference( $self, $ref, $blessing, $id, $tail );
     }
     return $val_obj;
 }
@@ -192,7 +208,7 @@ sub purge_garbage {
 
 sub release {
     my ( $self ) = @_;
-    $self->{ registry }->release( $self );
+    $self->{ uri_pool }->release( $self );
     delete $_[ 0 ]->{ dbm };
     untie %{ $_[ 0 ]->{ dummy } };
     $self->{ alive } = 0;
@@ -237,6 +253,20 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Kernel.pm,v $
+    Revision 1.6  2002/12/20 20:10:28  schmidt
+    Now using URI module for uri. (Plus renamed parameter)
+
+    Revision 1.5  2002/12/19 22:00:56  schmidt
+    Now uses lazy registration in Registry::URI (tag() function)
+
+    Revision 1.4  2002/12/18 21:59:19  schmidt
+    Registry and ClassPool replaced by Registry::URI and Registry::Class
+    Methods for storing kernel-properties added. These are used by
+    ID_Mills, Workers, Class pools etc. in stead of opaque codes.
+    uri method for the Registry::URI put in but needs much smarting
+    Uses Tie::Foreign proxy for data owned by different instances of
+    Kernel
+
     Revision 1.3  2002/10/25 14:25:35  schmidt
     Enabled use of specific DBM module (as in documentation)
 

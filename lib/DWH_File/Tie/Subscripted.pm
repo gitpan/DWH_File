@@ -13,7 +13,7 @@ $VERSION = 0.01;
 
 sub STORE {
     my ( $self, $key, $value_in ) = @_;
-    my $subscript = DWH_File::Subscript->from_input( $self, $key );
+    my $subscript = $self->get_subscript( $key );
     my $value = DWH_File::Value::Factory->from_input( $self->{ kernel },
 						      $value_in );
     my $node = $self->get_node( $subscript );
@@ -27,15 +27,19 @@ sub STORE {
 }
 
 sub FETCH {
-    my $subscript = DWH_File::Subscript->from_input( @_[ 0, 1 ] );
+    my $subscript = $_[ 0 ]->get_subscript( $_[ 1 ] );
     my $node = $_[ 0 ]->get_node( $subscript ) or return undef;
     return $node->{ value }->actual_value;
 }
 
 sub EXISTS {
-    my $subscript = DWH_File::Subscript->from_input( @_[ 0, 1 ] );
+    my $subscript = $_[ 0 ]->get_subscript( $_[ 1 ] );
     my $node = $_[ 0 ]->get_node( $subscript ) or return 0;
     return 1;
+}
+
+sub get_subscript {
+    return DWH_File::Subscript->from_input( @_[ 0, 1 ] );
 }
 
 sub get_node {
@@ -86,6 +90,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Subscripted.pm,v $
+    Revision 1.2  2002/12/18 22:20:33  schmidt
+    Slight refactoring
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

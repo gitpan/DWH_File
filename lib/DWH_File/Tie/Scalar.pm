@@ -56,7 +56,7 @@ sub custom_grounding { $_[ 0 ]->{ value } }
 
 sub vanish {
     my ( $self ) = @_;
-    $self->set_value( undef );
+    $self->release;
     $self->{ kernel }->unground( $self );
 }
 
@@ -92,6 +92,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Scalar.pm,v $
+    Revision 1.2  2002/12/18 22:21:21  schmidt
+    Uses new Slot method for frecounting
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

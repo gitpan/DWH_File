@@ -6,7 +6,7 @@ use vars qw( $VERSION $default_dbm );
 
 use DWH_File::Work;
 
-$VERSION = 0.21;
+$VERSION = 0.22;
 
 BEGIN { defined( $default_dbm ) or $default_dbm = 'AnyDBM_File' }
 
@@ -54,13 +54,12 @@ __END__
 
 =head1 NAME
 
-DWH_File 0.21 - data and object persistence in deep and wide hashes
+DWH_File 0.22 - data and object persistence in deep and wide hashes
 
 =head1 SYNOPSIS
 
     use DWH_File qw/ GDBM_File /;
-    # the use arguments set the DBM module used, the file locking scheme
-    # and the log files name extension
+    # the use argument set the DBM module used
 
     tie( %h, DWH_File, 'myFile', O_RDWR|O_CREAT, 0644 );
 
@@ -68,7 +67,7 @@ DWH_File 0.21 - data and object persistence in deep and wide hashes
 
 =head1 DESCRIPTION
 
-Note: the files produced by DWH_File 0.1 are in a different format
+Note: the files produced by DWH_File 0.22 are in a different format
 and are incompatible with the files produced by previous versions.
 
 DWH_File is used in a manner resembling NDBM_File, DB_File etc. These
@@ -101,7 +100,7 @@ that may refer across files is altered. See L<MODELS>.
 
 DWH_File uses a garbage collection scheme similar to that of Perl itself.
 This means that you actually don't have to worry about freeing anything
-(see the circular reference caveat though).
+(see the cyclic reference caveat though).
 Just like Perl DWH_File will remove entries that nothing is pointing to (and
 therefore noone can ever get at). If you've got a key whose value refers to an
 array for instance, that array will be swept away if you assign something else
@@ -190,13 +189,11 @@ reference will be persistent.
     untie %b;
     untie %c;
 
-Earlier versions of DWH_File used a parameter to the tie() to "tag"
-each file so the tied objects could reference each other. This has
-now become a built-in automatic feature, which is usually simply great.
-In special cases it does produce new caveats, though. Especially, if
-you need to add a fourth file later on in the above example, you
-have to make sure that it gets tied after all the others - at least
-at the time, when the file is created.
+Earlier versions of DWH_File used a tag in each individual data file
+to identlify it in the context of other file. From 0.22 a file-URI
+is used in stead. This removes some problems related to the tagging
+scheme, but it introduces an obligation that your data files don't
+move around.
 
 =head2 A persistent class
 
@@ -212,7 +209,7 @@ files etc.).
 
 I've removed this limitation, so DWH_File has become more sticky.
 I'm thinking of a new and more elegant way, like demanding that
-classes have DWH_File::Object in their heritage. Something will
+classes have DWH_File::Object in their heritage. Something may
 appear later.
 
 =head1 NOTES
@@ -220,7 +217,7 @@ appear later.
 =head2 PLATFORMS
 
 This version of DWH_File seems to work on all unices and I
-expect it to work on Window too. I'm eager to hear from anybody
+expect it to work on Windows too. I'm eager to hear from anybody
 who's tested it on anything.
 
 =head2 MLDBM
@@ -242,11 +239,11 @@ much acceptance since I first put it on CPAN sometime 2000 (I think).
 
 =head2 (IN)COMPATIBILITY
 
-This version cannot share files with versions 0.01 to 0.04 of DWH_File.
-The format has changed dramatically. If you have legacy data that you'd
-really like to convert to the new format, send me an email. I may
-write a convertion facility if persuaded. I don't need one myself, so
-if nobody asks for it, I probably won't make it.
+This version cannot share files with versions 0.01 to 0.21 of DWH_File.
+If you have legacy data that you'd really like to convert to the new
+format, send me an email. I may write a convertion facility if
+persuaded. I don't need one myself, so if nobody asks for it, I
+probably won't make it.
 
 =head1 CAVEATS
 
@@ -273,9 +270,9 @@ DBM module you use. See AnyDBM_File(3) for specs of the various DMB
 modules.  Also some DBM modules may not be complete (I had trouble
 with the EXIST method not existing in NDBM_File).
 
-=item BEWARE OF CIRCULAR REFERENCES
+=item BEWARE OF CYCLIC REFERENCES
 
-Your data may contain circular references which mean that the
+Your data may contain cyclic references which mean that the
 reference count is above zero eventhough the data is unreachable. This
 will defeat the DWH_File garbage collection scheme an thus may cause
 your file to swell with useless unreachable data.
@@ -304,12 +301,104 @@ To avoid the problem, break the self reference before losing touch:
 Currently I don't have the time to try to work out a better garbage
 collection scheme for DWH_File. Sorry.
 
-=item ALWAYS USE THE SAME FILES TOGETHER
+=item DON'T MOVE DATA FILES AROUND
 
-If you use a set of hashes tied to a set of files and these hashes contain
-references to data in each other you must always tie the same set of
-files to hases when editing the content. Otherwise the data in the files
-may become corrupted.
+From version 0.22 the DWH_File instances use file URIs to identify
+themselves amongst one another. This means that if you have more than
+one tied hash and there are references to data across tied hashes,
+these references will become invalid if the files change location.
+This may be solved if you must move a file by adding a symbolic link
+to the file at its original path and then tie to that link.
+
+=item REFERENCES USED AS KEYS REMAIN LIVE REFERENCES
+
+This is certainly a feature, but it is a deviation from the way standard
+hashes work. Also it means, that an object which is used as hash key
+anywhere will not be garbage collected because it's reference count
+will remain at least one.
+
+I made it this way in 0.22 in order to fulfill the aim af DWH_File to
+practically eliminate the differences between multiple and a single
+invocation of the code using the hash. Here's an example:
+
+If a perl program goes:
+
+    # %h being an empty standard hash
+    $h{ batman } = 12000;
+    print "$h{ batman }\n";
+
+- then it'll output
+
+    12000
+
+But if you split this in to two portions, se one program says
+
+    $h{ batman } = 12000;
+
+and another program which incidentally is run the next day goes
+
+    print "$h{ batman }\n";
+
+- then nothing but the newline is printed (to standard out anyway)
+
+Well, if the hash %h had been tied to DWH_File on the same file, your
+data would be persistent, so putting the two statements in two
+different invocations would make no difference. You'd get your
+
+    12000
+
+- in the latter case too.
+
+Now if the key is a reference:
+
+    # this has happened at some time
+    $h{ some } = [ qw( hoo do you love ) ];
+    # and then someone decides to use the array ref as a key:
+    $h{ $h{ some } } = "koochi koochi";
+    print "$h{ $h{ some } }\n";
+
+- then converting the array reference to a string based on the address
+of the references item (as standard hashes do) will mean, that $h{ some }
+will most likely constitute a different key in a different invocation.
+Thus if I split off the print statement into a different program and
+run it another day, I won't get the intended result.
+
+By using actual references as keys, I solve this problem. But it has a
+couple of consequences. Eg this code:
+
+   for ( keys %h ) { $_->bingo }
+
+might make sense if the %h is tied to DWH_File, because the keys may
+actually be objects of a class which implements the method bingo().
+This code would not make sense if %h is a plain hash, since all the
+keys would surely be strings.
+
+There's an issue, which I haven't tested, but I suspect, that if you
+use an object of a class that overloads operator "" as a key in a regular
+hash, then you'll get the result of the overload operation as a key
+(and not just that standard string based on the address).
+
+If the stringifying method yealds a different result depending on
+eg. the state of the object (or the environment), then
+
+    $h{ $some_object } = "Slot one";
+    $some_object->change_state_which_alters_string_representation;
+    $h{ $some_object } = "Slot two";
+
+will store the two strings as the values for two different keys in the
+hash if $some_object is stringified before being used as a key (as in
+a standard hash) while "Slot two" will simply overwrite the first
+assignment if the actual reference (which is unchanged form line one
+to line three of the program) is used as key (as in a DWH_File tied
+hash).
+
+It's not hard to work around this (quite unlikely) problem - but you've
+got to know that it's there.
+
+It may even be possible to correct DWH_File to use the stringification
+if the overload is present - I may look into it later (oh and do mail
+me if you know how this can be done - the checking if the "" operator
+is overloaded, that is).
 
 =item LIMITATION 1
 
@@ -346,8 +435,8 @@ This means that if you say
     %h = ();
     $h{ a }[ 3 ]{ pie } = "Apple!";
 
-you be sure that the implicit anonymous array and hash "spring into existence"
-like they should. You'll have to make them exist first:
+you can't be sure that the implicit anonymous array and hash "spring
+into existence" like they should. You'll have to make them exist first:
 
     %h = ( a =E<gt> [ undef, undef, undef, {} ] );
     $h{ a }[ 3 ]{ pie } = "Apple!";
@@ -380,7 +469,7 @@ documentation.
 
 =head1 COPYRIGHT
 
-Copyright (c) Jakob Schmidt/Orqwood Software 2002
+Copyright (c) Jakob Schmidt/Orqwood Software 2003
 
 The DWH_File distribution is free software and may be used
 and distributed under the same terms as Perl itself.
@@ -394,6 +483,12 @@ and distributed under the same terms as Perl itself.
 CVS-log (non-pod)
 
     $Log: DWH_File.pm,v $
+    Revision 1.7  2003/01/04 23:30:54  schmidt
+    Info on new features and their consequences in the .pod
+
+    Revision 1.6  2002/12/18 21:47:39  schmidt
+    New version label and slight comments correction
+
     Revision 1.5  2002/11/02 22:45:10  schmidt
     Release version 0.21
 
