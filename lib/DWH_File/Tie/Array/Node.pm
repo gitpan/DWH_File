@@ -21,9 +21,10 @@ sub new {
 }
 
 sub from_stored {
-    my ( $this, $kernel, $data ) = @_;
+    my ( $this, $kernel, $data, $subscript ) = @_;
     my $self = $this->new;
     $self->{ value } = DWH_File::Value::Factory->from_stored( $kernel, $data );
+    $self->{ subscript } = $subscript;
     return $self;
 }
 
@@ -62,6 +63,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Node.pm,v $
+    Revision 1.2  2003/03/30 22:18:26  schmidt
+    Nodes remember their subscript while in main memory
+
     Revision 1.1.1.1  2002/09/27 22:41:49  schmidt
     Imported
 

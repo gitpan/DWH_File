@@ -1,7 +1,7 @@
 DWH_File (the Deep 'n' Wide Hash)
 - persistence for complex datastructures and objects in Perl
 
-version 0.23
+version 0.24
 
 INSTALLATION:
 
@@ -68,6 +68,14 @@ will probably take me a while...
 
 HISTORY
 
+    0.24 - This release doesn't fix anu bugs or add to the functionality
+           of DWH_File. It only contains techical additions for the
+           benefit of extension libraries (like the DWH_Lib::Harrashy
+           about to be published through www.orqwood.dk):
+           Added value parameter to
+           DWH_File::Tie::Subscripted::handle_new_noded() for DWH_Lib use
+           and subscript memory to nodes
+
     0.23 - Added a skeleton mechanism for classes who declare themselves
            "DWH_File::Aware" (by including this abstract class in their
            heritage) to control the way their data is tied to DWH_File.
@@ -119,6 +127,9 @@ DWH_File and it's accomplices
 LOG
 
   $Log: README,v $
+  Revision 1.8  2003/03/31 18:08:04  schmidt
+  Ready for release 0.24
+
   Revision 1.7  2003/01/25 21:12:13  schmidt
   Changes for 0.23 added, date and version nos updated
 

@@ -1,6 +1,5 @@
 package DWH_File::Tie::Hash::Node;
 
-use warnings;
 use strict;
 use vars qw( @ISA $VERSION );
 use overload
@@ -23,7 +22,7 @@ sub new {
 }
 
 sub from_stored {
-    my ( $this, $kernel, $data ) = @_;
+    my ( $this, $kernel, $data, $subscript ) = @_;
     my $self = $this->new;
     my ( $pred_len, $succ_len ) = unpack "ll", $data;
     my $pl = $pred_len > 0 ? $pred_len : 0;
@@ -36,6 +35,7 @@ sub from_stored {
 	                                from_stored( $kernel, $succ_string );
     $self->{ value } = DWH_File::Value::Factory->from_stored( $kernel,
 							      $value_string );
+    $self->{ subscript } = $subscript;
     return $self;
 }
 
@@ -87,6 +87,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Node.pm,v $
+    Revision 1.3  2003/03/30 22:18:17  schmidt
+    Nodes remember their subscript while in main memory
+
     Revision 1.2  2002/12/18 22:15:55  schmidt
     Now supports references as keys
 

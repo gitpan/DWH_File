@@ -19,7 +19,7 @@ sub STORE {
     my $node = $self->get_node( $subscript );
     unless ( $node ) {
 	$node = $self->node_class->new;
-	$self->handle_new_node( $node, $subscript );
+	$self->handle_new_node( $node, $subscript, $value );
     }
     $node->set_value( $value );
     # make lazy
@@ -47,7 +47,7 @@ sub get_node {
     my $data = $self->{ kernel }->fetch( $subscript );
     if ( $data ) {
 	return $self->node_class->from_stored( $self->{ kernel },
-					       $data );
+					       $data, $subscript );
     }
     else { return undef }
 }
@@ -92,6 +92,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Subscripted.pm,v $
+    Revision 1.4  2003/03/30 22:17:09  schmidt
+    Addede value param for DWH_Lib use in handle_new_node()
+
     Revision 1.3  2003/01/16 21:29:32  schmidt
     Declaration of method CLEAR
 
