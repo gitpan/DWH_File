@@ -1,7 +1,7 @@
 DWH_File (the Deep 'n' Wide Hash)
 - persistence for complex datastructures and objects in Perl
 
-version 0.02
+version 0.03
 
 FILES:
 
@@ -32,7 +32,7 @@ details.
 
 .pod documentation is included in the .pm file.
 
-As the version number (0.02) indicates this is a very early beta state
+As the version number (0.03) indicates this is a very early beta state
 piece of software. Please contact me if you have any comments or suggestions
 - also language corrections or other comments on the documentation.
 
@@ -62,6 +62,9 @@ REQUESTS FOR COMMENTS AND HELP:
     ? I don't know how to make a MakeFile.PL
 
 HISTORY
+
+    0.03 - Fixed bug introduced in 0.02 which caused wild duplication
+           of blessed references (objects)
 
     0.02 - Fixed bug which caused deep recursion when storing structures
            that wich contained reference cycles before storing.

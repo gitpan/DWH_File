@@ -1,7 +1,7 @@
 # DWH_File (the Deep 'n' Wide Hash)
 # - persistence for complex datastructures and objects in Perl
 #
-# version 0.02
+# version 0.03
 #
 # Special characters
 # ^ as first char in a key indicates that the value is helper-data
@@ -273,9 +273,9 @@ sub FETCH
 sub _tied
 {
     my $ty;
-    if ( ref( $_[ 0 ] ) =~ /HASH/ ) { $ty = tied( %{ $_[ 0 ] } ) }
-    elsif ( ref( $_[ 0 ] ) =~ /ARRAY/ ) { $ty = tied( @{ $_[ 0 ] } ) }
-    elsif ( ref( $_[ 0 ] ) =~ /SCALAR/ ) { $ty = tied( ${ $_[ 0 ] } ) }
+    if ( "$_[ 0 ]" =~ /HASH/ ) { $ty = tied( %{ $_[ 0 ] } ) }
+    elsif ( "$_[ 0 ]" =~ /ARRAY/ ) { $ty = tied( @{ $_[ 0 ] } ) }
+    elsif ( "$_[ 0 ]" =~ /SCALAR/ ) { $ty = tied( ${ $_[ 0 ] } ) }
 
     if ( ref $ty ) { return $ty }
     elsif ( exists $tieing{ $_[ 0 ] } ) { return $tieing{ $_[ 0 ] } }
@@ -1877,7 +1877,7 @@ use vars qw( $dbmf $muex $log );
 #       to logical true for logging to take place. Whitespace is replaced by
 #       underscores.
 
-$DWH_File::VERSION = 0.02;
+$DWH_File::VERSION = 0.03;
 
 BEGIN
 {
@@ -1978,7 +1978,7 @@ __END__
 
 =head1 NAME
 
-DWH_File 0.02 - data and object persistence in deep and wide hashes
+DWH_File 0.03 - data and object persistence in deep and wide hashes
 
 =head1 SYNOPSIS
 
@@ -2386,7 +2386,7 @@ tell me.
 
 Please let me know if you find any.
 
-As the version number (0.02) indicates this is a very early beta state
+As the version number (0.03) indicates this is a very early beta state
 piece of software. Please contact me if you have any comments or suggestions
 - also language corrections or other comments on the documentation.
 
