@@ -6,7 +6,7 @@ use vars qw( $VERSION $default_dbm );
 
 use DWH_File::Work;
 
-$VERSION = 0.22;
+$VERSION = 0.23;
 
 BEGIN { defined( $default_dbm ) or $default_dbm = 'AnyDBM_File' }
 
@@ -483,6 +483,9 @@ and distributed under the same terms as Perl itself.
 CVS-log (non-pod)
 
     $Log: DWH_File.pm,v $
+    Revision 1.8  2003/01/25 21:11:39  schmidt
+    Version bumped up to 0.23
+
     Revision 1.7  2003/01/04 23:30:54  schmidt
     Info on new features and their consequences in the .pod
 

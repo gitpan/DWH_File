@@ -59,7 +59,7 @@ sub DELETE {
 	    $self->{ kernel }->store( $s_sub, $s_node );
 	}
     }
-    return $value;
+    return $value->actual_value;
 }
 
 sub CLEAR {
@@ -89,12 +89,13 @@ sub NEXTKEY {
 
 sub tie_reference {
     $_[ 2 ] ||= {};
-    my ( $this, $kernel, $ref, $blessing, $id, $tail ) = @_;
+    my ( $this, $kernel, $ref, $blessing, $id, $tail, $tie_class ) = @_;
     my $class = ref $this || $this;
+    $tie_class ||= '';
     $blessing ||= ref $ref;
-    my $instance = tie %$ref, 'DWH_File::Tie::Hash', $kernel, $ref, $id, $tail;
+    my $instance = tie %$ref, $tie_class || $class, $kernel, $ref, $id, $tail;
     if ( $blessing ne 'HASH' ) { bless $ref, $blessing }
-    bless $instance, $class;
+    $tie_class and bless $instance, $class;
     return $instance;
 }
 
@@ -187,6 +188,14 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Hash.pm,v $
+    Revision 1.4  2003/01/25 20:53:19  schmidt
+    Bugfix. The return value of DELETE was invalid
+
+    Revision 1.3  2003/01/16 21:28:34  schmidt
+    Dynamic binding of tier class in tie_reference.
+    Optional argument to tie_reference added to allow override of dynamic
+    binding. Specifically, this is needed by DWH_File::Work
+
     Revision 1.2  2002/12/18 22:23:06  schmidt
     Support for references as keys added
 

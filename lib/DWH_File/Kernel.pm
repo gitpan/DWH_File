@@ -119,7 +119,11 @@ sub activate_by_id {
         my $tie_class = $self->{ class_pool }->fetch( $tie_class_id );
         my $blessing = $self->{ class_pool }->fetch( $blessing_id );
         $tie_class or die "Invalid class id: '$tie_class_id'";
-        $val_obj = $tie_class->tie_reference( $self, $ref, $blessing, $id, $tail );
+        $val_obj = $tie_class->tie_reference( $self, $ref, $blessing,
+					      $id, $tail );
+	if ( UNIVERSAL::isa( $ref, 'DWH_File::Aware' ) ) {
+	    $ref->dwh_activate( $val_obj );
+	}
     }
     return $val_obj;
 }
@@ -253,6 +257,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Kernel.pm,v $
+    Revision 1.7  2003/01/16 21:10:08  schmidt
+    Calls dwh_activate() hook for objects that have DWH_File::Aware in their heritage
+
     Revision 1.6  2002/12/20 20:10:28  schmidt
     Now using URI module for uri. (Plus renamed parameter)
 

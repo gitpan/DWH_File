@@ -2,6 +2,7 @@ README
 MANIFEST
 Makefile.PL
 lib/DWH_File.pm
+lib/DWH_File/Aware.pm
 lib/DWH_File/Cache.pm
 lib/DWH_File/Cached.pm
 lib/DWH_File/ID_Mill.pm

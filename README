@@ -1,7 +1,7 @@
 DWH_File (the Deep 'n' Wide Hash)
 - persistence for complex datastructures and objects in Perl
 
-version 0.22
+version 0.23
 
 INSTALLATION:
 
@@ -68,6 +68,15 @@ will probably take me a while...
 
 HISTORY
 
+    0.23 - Added a skeleton mechanism for classes who declare themselves
+           "DWH_File::Aware" (by including this abstract class in their
+           heritage) to control the way their data is tied to DWH_File.
+           Also made the internal tieing process more dynamic to
+           promote reuse in special tieing-classes external to DWH_File
+           core. And a bugfix: The return value of delete() operations
+           on hashes was errouneous. This is fixed. Also added a couple
+           of testcases to verify this.
+
     0.22 - Now references used as keys anywhere in a DWH_Filed structure
            are real live references (and not just textual representations
            which are meaningful only in the very first runtime invication
@@ -103,13 +112,16 @@ HISTORY
 
     0.01 - Initially published version
 
-Jakob Schmidt <schmidt@orqwood.dk> 2003 January 4
+Jakob Schmidt <schmidt@orqwood.dk> 2003 January 25
 Visit http://www.orqwood.dk/perl5/dwh for complete info on
 DWH_File and it's accomplices
 
 LOG
 
   $Log: README,v $
+  Revision 1.7  2003/01/25 21:12:13  schmidt
+  Changes for 0.23 added, date and version nos updated
+
   Revision 1.6  2003/01/04 23:29:54  schmidt
   Updated for version 0.22
 

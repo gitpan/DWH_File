@@ -18,6 +18,12 @@ sub TIEHASH {
     return $self;
 }
 
+sub tie_reference {
+    my $this = shift;
+    $_[ 5 ] = 'DWH_File::Tie::Hash';
+    return $this->SUPER::tie_reference( @_ );
+}
+
 sub wipe {
     if ( $_[ 0 ]->{ kernel }{ alive } ) {
 	$_[ 0 ]->{ kernel }->wipe;
@@ -56,6 +62,11 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Work.pm,v $
+    Revision 1.3  2003/01/16 21:19:39  schmidt
+    Overrides tie_reference to provide a special tie class parameter.
+    This is due to redesign that doesn't hard-code the classes
+    used to tie references i the DWH_File::Tie subclasses.
+
     Revision 1.2  2002/10/25 14:04:10  schmidt
     Slight revision of untie and release management
 

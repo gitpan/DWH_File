@@ -1,4 +1,4 @@
-BEGIN { $| = 1; print "1..3\n" }
+BEGIN { $| = 1; print "1..5\n" }
 END { print "not ok 1\n" unless $loaded }
 use Fcntl;
 use DWH_File;
@@ -15,6 +15,8 @@ $loaded = 1;
 # 1: Tie and assign some entries. OK if fetches match assignments
 # 2: Add an extra reference to the scalar from 1 and check deref
 # 3: Change the original scalar and check that the references follow
+# 4: delete an entry and test the value returned
+# 5: test that the entry does not exist any more
 #######################################################################
 
 if ( opendir TD, '.' ) {
@@ -33,6 +35,12 @@ $dwh{ href } = { sild => "karrysalat",
 		 ost => "peberfrugt",
 		 roastbeef => "peberrod",
 		 };
+$dwh{ del_href1 } = { der => "sad",
+                      en  => "fisker",
+                    };
+$dwh{ del_href2 } = { saa => "tankefuld",
+                      og  => "lytted",
+                    };
 my $scalar = "orqwood";
 $dwh{ sref } = \$scalar;
 
@@ -43,6 +51,10 @@ if ( $dwh{ metafyt } eq "dumagraf falanks" and
      $dwh{ href }->{ sild } eq "karrysalat" and
      $dwh{ href }->{ ost } eq "peberfrugt" and
      $dwh{ href }->{ roastbeef } eq "peberrod" and
+     $dwh{ del_href1 }->{ der } eq "sad" and
+     $dwh{ del_href1 }->{ en } eq "fisker" and
+     $dwh{ del_href2 }->{ saa } eq "tankefuld" and
+     $dwh{ del_href2 }->{ og } eq "lytted" and
      ${ $dwh{ sref } } eq "orqwood" ) {
     print "ok 1\n";
 }
@@ -65,6 +77,19 @@ if ( ${ $dwh{ href }->{ samescalar } } eq "software" ) {
     print "ok 3\n";
 }
 else { print "not ok 3\n" }
+
+########### 4 ###########
+
+my $del1 = delete $dwh{ del_href1 };
+
+if ( $del1->{ der } eq "sad" and
+     $del1->{ en } eq "fisker" ) { print "ok 4\n" }
+else { print "not ok 4\n" }
+
+########### 5 ###########
+
+if ( exists $dwh{ del_href1 } ) { print "not ok 5\n" }
+else { print "ok 5\n" }
 
 ########### . ###########
 

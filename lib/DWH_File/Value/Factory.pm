@@ -21,17 +21,17 @@ sub from_input {
     unless ( defined $actual ) { return DWH_File::Value::Undef->new }
     elsif ( ref $actual ) {
         my $ty;
-        if ( UNIVERSAL::isa( $actual, 'SCALAR' ) ) {
-            $ty = tied $$actual;
-            $tier ||= 'DWH_File::Tie::Scalar';
+	if ( UNIVERSAL::isa( $actual, 'DWH_File::Aware' ) ) {
+            $tier ||= $actual->dwh_tier;
+        }	
+	if ( UNIVERSAL::isa( $actual, 'SCALAR' ) ) {
+            $ty = tied $$actual or $tier ||= 'DWH_File::Tie::Scalar';
         }
         elsif ( UNIVERSAL::isa( $actual, 'ARRAY' ) ) {
-            $ty = tied @$actual;
-            $tier ||= 'DWH_File::Tie::Array';
+            $ty = tied @$actual or $tier ||= 'DWH_File::Tie::Array';
         }
         elsif ( UNIVERSAL::isa( $actual, 'HASH' ) ) {
-            $ty = tied %$actual;
-            $tier ||= 'DWH_File::Tie::Hash';
+            $ty = tied %$actual or $tier ||= 'DWH_File::Tie::Hash'
         }
         else { die "Unable to tie $actual" }
         if ( $ty ) {
@@ -42,7 +42,13 @@ sub from_input {
             else { die "Can't handle tied data" }
         }
 	else {
+	    if ( UNIVERSAL::isa( $actual, 'DWH_File::Aware' ) ) {
+		$actual->dwh_pre_sign_in;
+	    }
 	    $ty = $tier->tie_reference( $kernel, $actual );
+	    if ( UNIVERSAL::isa( $actual, 'DWH_File::Aware' ) ) {
+		$actual->dwh_post_sign_in( $ty );
+	    }
 	    $kernel->ground_reference( $ty );
 	    return $ty;
 	}
@@ -92,6 +98,11 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Factory.pm,v $
+    Revision 1.3  2003/01/16 21:22:52  schmidt
+    Call hooks in objects having DWH_File::Aware in their heritage,
+    allowing them to specify the class used to tie them and to
+    be informed that they're being tied into a DWH-structure
+
     Revision 1.2  2002/12/18 22:24:55  schmidt
     Uses Tie::Foreign proxy when kernels differ
 

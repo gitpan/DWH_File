@@ -52,6 +52,8 @@ sub get_node {
     else { return undef }
 }
 
+sub CLEAR { die "Abstract method called" }
+
 sub vanish {
     my ( $self ) = @_;
     $self->CLEAR;
@@ -90,6 +92,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Subscripted.pm,v $
+    Revision 1.3  2003/01/16 21:29:32  schmidt
+    Declaration of method CLEAR
+
     Revision 1.2  2002/12/18 22:20:33  schmidt
     Slight refactoring
 

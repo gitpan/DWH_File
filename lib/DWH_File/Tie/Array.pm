@@ -40,6 +40,8 @@ sub STORESIZE {
     }
 }
 
+sub CLEAR { $_[ 0 ]->STORESIZE( 0 ) }
+
 sub POP {
     my ( $self ) = @_;
     $self->{ size } or return undef;
@@ -170,10 +172,9 @@ sub tie_reference {
     my ( $this, $kernel, $ref, $blessing, $id, $tail ) = @_;
     my $class = ref $this || $this;
     $blessing ||= ref $ref;
-    my $instance = tie @$ref, 'DWH_File::Tie::Array',
+    my $instance = tie @$ref, $class,
                        $kernel, $ref, $id, $tail;
     if ( $blessing ne 'ARRAY' ) { bless $ref, $blessing }
-    bless $instance, $class;
     return $instance;
 }
 
@@ -236,6 +237,10 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Array.pm,v $
+    Revision 1.4  2003/01/16 21:24:42  schmidt
+    CLEAR implemented (by means of STORESIZE) + tie_reference() modified
+    to allow dynamic binding to tier class
+
     Revision 1.3  2002/12/18 22:22:13  schmidt
     Uses new Slot methods for recounting
 

@@ -30,10 +30,9 @@ sub tie_reference {
     my ( $this, $kernel, $ref, $blessing, $id, $tail ) = @_;
     my $class = ref $this || $this;
     $blessing ||= ref $ref;
-    my $instance = tie $$ref, 'DWH_File::Tie::Scalar', $kernel,
+    my $instance = tie $$ref, $class, $kernel,
                        $ref, $id, $tail;
     if ( $blessing ne 'SCALAR' ) { bless $ref, $blessing }
-    bless $instance, $class;
     return $instance;
 }
 
@@ -92,6 +91,9 @@ This module is part of the DWH_File distribution. See DWH_File.pm.
 CVS-log (non-pod)
 
     $Log: Scalar.pm,v $
+    Revision 1.3  2003/01/16 21:30:02  schmidt
+    Dynamic binding of tie class in tie_reference()
+
     Revision 1.2  2002/12/18 22:21:21  schmidt
     Uses new Slot method for frecounting
 
